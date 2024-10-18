@@ -1,21 +1,27 @@
-<?php
+<?php /** @noinspection PhpUnusedPrivateMethodInspection */
+/** @noinspection PhpDocSignatureIsNotCompleteInspection */
+/** @noinspection PhpUnused */
+/** @noinspection PhpClassHasTooManyDeclaredMembersInspection */
 
 namespace IbanMagic;
 
-
-# PHP IBAN - http://github.com/globalcitizen/php-iban - LGPLv3
-
-final class IbanLoad{
+/**
+ * @license LGPLv3
+ * @author  PHP IBAN - http://github.com/globalcitizen/php-iban
+ * @author  Petr Adámek
+ */
+final class IbanLoad {
 	/**
 	 * Global flag by request
 	 */
-	public static bool $__disable_iiban_gmp_extension=false;
+	public static bool $__disable_iiban_gmp_extension = false;
+
 	/**
 	 * Verify an IBAN number.
 	 * If $machine_format_only, do not tolerate unclean (eg. spaces, dashes, leading 'IBAN ' or 'IIBAN ', lower case) input.
 	 * (Otherwise, input can be printed 'IIBAN xx xx xx...' or 'IBAN xx xx xx...' or machine 'xxxxx' format.)
 	 */
-	public static function verify_iban(string $iban,bool $machine_format_only = false): bool{
+	public static function verify_iban(string $iban, bool $machine_format_only = false): bool{
 
 		# First convert to machine format.
 		if (!$machine_format_only){
@@ -29,10 +35,6 @@ final class IbanLoad{
 		if (strlen($iban) != self::iban_country_get_iban_length($country)){
 			return false;
 		}
-
-		# Get checksum of IBAN
-		$checksum = self::iban_get_checksum_part($iban);
-
 		# Get country-specific IBAN format regex
 		$regex = '/'.self::iban_country_get_iban_format_regex($country).'/';
 
@@ -62,8 +64,7 @@ final class IbanLoad{
 		# Remove IIBAN or IBAN from start of string, if present
 		$iban = preg_replace('/^I?IBAN/', '', $iban);
 		# Remove all non basic roman letter / digit characters
-		$iban = preg_replace('/[^a-zA-Z0-9]/', '', $iban);
-		return $iban;
+		return preg_replace('/[^a-zA-Z0-9]/', '', $iban);
 	}
 
 	/**
@@ -73,7 +74,7 @@ final class IbanLoad{
 	 * recommendations available at:
 	 * http://www.europeanpaymentscouncil.eu/knowledge_bank_download.cfm?file=ECBS%20standard%20implementation%20guidelines%20SIG203V3.2.pdf
 	 */
-	public static function iban_to_human_format(string$iban):string{
+	public static function iban_to_human_format(string $iban): string{
 		# Remove all spaces
 		$iban = str_replace(' ', '', $iban);
 		# Add spaces every four characters
@@ -137,7 +138,7 @@ final class IbanLoad{
 	/**
 	 *  Check the checksum of an IBAN - code modified from Validate_Finance PEAR class
 	 */
-	public static function iban_verify_checksum($iban){
+	public static function iban_verify_checksum(string $iban): bool{
 		# convert to machine format
 		$iban = self::iban_to_machine_format($iban);
 		# move first 4 chars (countrycode and checksum) to the end of the string
@@ -155,9 +156,9 @@ final class IbanLoad{
 
 	/**
 	 *  Find the correct checksum for an IBAN
-	 *   $iban  The IBAN whose checksum should be calculated
+	 * @param string $iban The IBAN whose checksum should be calculated
 	 */
-	public static function iban_find_checksum($iban){
+	public static function iban_find_checksum(string $iban): string{
 		$iban = self::iban_to_machine_format($iban);
 		# move first 4 chars to right
 		$left = substr($iban, 0, 2).'00'; # but set right-most 2 (checksum) to '00'
@@ -169,23 +170,23 @@ final class IbanLoad{
 		# get mod97-10 output
 		$checksum = self::iban_mod97_10_checksum($tmp);
 		# return 98 minus the mod97-10 output, left zero padded to two digits
-		return str_pad((98 - $checksum), 2, '0', STR_PAD_LEFT);
+		return str_pad((string)(98 - $checksum), 2, '0', STR_PAD_LEFT);
 	}
 
 	/**
 	 *  Set the correct checksum for an IBAN
-	 *   $iban  IBAN whose checksum should be set
+	 * @param string $iban IBAN whose checksum should be set
 	 */
-	public static function iban_set_checksum($iban){
+	public static function iban_set_checksum(string $iban): string{
 		$iban = self::iban_to_machine_format($iban);
 		return substr($iban, 0, 2).self::iban_find_checksum($iban).substr($iban, 4);
 	}
 
 	/**
 	 *  Character substitution required for IBAN MOD97-10 checksum validation/generation
-	 *   $s  Input string (IBAN)
+	 * @param string $s Input string (IBAN)
 	 */
-	public static function iban_checksum_string_replace($s){
+	public static function iban_checksum_string_replace(string $s): string{
 		$iban_replace_chars = range('A', 'Z');
 		foreach (range(10, 35) as $tempvalue){
 			$iban_replace_values[] = strval($tempvalue);
@@ -195,8 +196,9 @@ final class IbanLoad{
 
 	/**
 	 *  Same as below but actually returns resulting checksum
+	 * @param numeric-string $numeric_representation
 	 */
-	public static function iban_mod97_10_checksum($numeric_representation){
+	public static function iban_mod97_10_checksum(string $numeric_representation): int{
 		$checksum = intval(substr($numeric_representation, 0, 1));
 		for ($position = 1; $position < strlen($numeric_representation); $position++){
 			$checksum *= 10;
@@ -208,11 +210,11 @@ final class IbanLoad{
 
 	/**
 	 *  Perform MOD97-10 checksum calculation ('Germanic-level efficiency' version - thanks Chris!)
+	 * @param numeric-string $numeric_representation
 	 */
-	public static function iban_mod97_10($numeric_representation){
-		global $__disable_iiban_gmp_extension;
+	public static function iban_mod97_10(string $numeric_representation): bool{
 		# prefer php5 gmp extension if available
-		if (!($__disable_iiban_gmp_extension) && function_exists('gmp_intval') && $numeric_representation != ''){
+		if (!(self::$__disable_iiban_gmp_extension) && function_exists('gmp_intval') && $numeric_representation != ''){
 			return gmp_intval(gmp_mod(gmp_init($numeric_representation, 10), '97')) === 1;
 		}
 
@@ -233,7 +235,7 @@ final class IbanLoad{
 		$position = 0;
 		while ($position < $length){
 			$value = 9 - strlen($rest);
-			$n = $rest.substr($numeric_representation, $position, $value);
+			$n = (int)(((string)$rest).substr($numeric_representation, $position, $value));
 			$rest = $n % 97;
 			$position = $position + $value;
 		}
@@ -242,8 +244,9 @@ final class IbanLoad{
 
 	/**
 	 *  Get an array of all the parts from an IBAN
+	 * @return array<string, string|false>
 	 */
-	public static function iban_get_parts($iban){
+	public static function iban_get_parts(string $iban): array{
 		return [
 			'checksum'         => self::iban_get_checksum_part($iban),
 			'bban'             => self::iban_get_bban_part($iban),
@@ -251,21 +254,21 @@ final class IbanLoad{
 			'country'          => self::iban_get_country_part($iban),
 			'branch'           => self::iban_get_branch_part($iban),
 			'account'          => self::iban_get_account_part($iban),
-			'nationalchecksum' => self::iban_get_nationalchecksum_part($iban)
+			'nationalchecksum' => self::iban_get_nationalchecksum_part($iban),
 		];
 	}
 
 	/**
 	 *  Get the Bank ID (institution code) from an IBAN
 	 */
-	public static function iban_get_bank_part($iban){
+	public static function iban_get_bank_part(string $iban): string{
 		$iban = self::iban_to_machine_format($iban);
 		$country = self::iban_get_country_part($iban);
 		$start = self::iban_country_get_bankid_start_offset($country);
 		$stop = self::iban_country_get_bankid_stop_offset($country);
 		if ($start != '' && $stop != ''){
 			$bban = self::iban_get_bban_part($iban);
-			return substr($bban, $start, ($stop - $start + 1));
+			return substr($bban, (int)$start, ((int)$stop - (int)$start + 1));
 		}
 		return '';
 	}
@@ -273,14 +276,14 @@ final class IbanLoad{
 	/**
 	 *  Get the Branch ID (sort code) from an IBAN
 	 */
-	public static function iban_get_branch_part($iban){
+	public static function iban_get_branch_part(string $iban): string{
 		$iban = self::iban_to_machine_format($iban);
 		$country = self::iban_get_country_part($iban);
 		$start = self::iban_country_get_branchid_start_offset($country);
 		$stop = self::iban_country_get_branchid_stop_offset($country);
 		if ($start != '' && $stop != ''){
 			$bban = self::iban_get_bban_part($iban);
-			return substr($bban, $start, ($stop - $start + 1));
+			return substr($bban, (int)$start, ((int)$stop - (int)$start + 1));
 		}
 		return '';
 	}
@@ -288,7 +291,7 @@ final class IbanLoad{
 	/**
 	 *  Get the (branch-local) account ID from an IBAN
 	 */
-	public static function iban_get_account_part($iban){
+	public static function iban_get_account_part(string $iban): string{
 		$iban = self::iban_to_machine_format($iban);
 		$country = self::iban_get_country_part($iban);
 		$start = self::iban_country_get_branchid_stop_offset($country);
@@ -297,7 +300,7 @@ final class IbanLoad{
 		}
 		if ($start != ''){
 			$bban = self::iban_get_bban_part($iban);
-			return substr($bban, $start + 1);
+			return substr($bban, (int)$start + 1);
 		}
 		return '';
 	}
@@ -305,7 +308,7 @@ final class IbanLoad{
 	/**
 	 *  Get the national checksum part from an IBAN
 	 */
-	public static function iban_get_nationalchecksum_part($iban){
+	public static function iban_get_nationalchecksum_part(string $iban): string{
 		$iban = self::iban_to_machine_format($iban);
 		$country = self::iban_get_country_part($iban);
 		$start = self::iban_country_get_nationalchecksum_start_offset($country);
@@ -317,104 +320,104 @@ final class IbanLoad{
 			return '';
 		}
 		$bban = self::iban_get_bban_part($iban);
-		return substr($bban, $start, ($stop - $start + 1));
+		return substr($bban, (int)$start, ((int)$stop - (int)$start + 1));
 	}
 
 	/**
 	 *  Get the name of an IBAN country
 	 */
-	public static function iban_country_get_country_name($iban_country){
+	public static function iban_country_get_country_name(string $iban_country): false|string{
 		return self::_iban_country_get_info($iban_country, 'country_name');
 	}
 
 	/**
 	 *  Get the domestic example for an IBAN country
 	 */
-	public static function iban_country_get_domestic_example($iban_country){
+	public static function iban_country_get_domestic_example(string $iban_country): false|string{
 		return self::_iban_country_get_info($iban_country, 'domestic_example');
 	}
 
 	/**
 	 *  Get the BBAN example for an IBAN country
 	 */
-	public static function iban_country_get_bban_example($iban_country){
+	public static function iban_country_get_bban_example(string $iban_country): false|string{
 		return self::_iban_country_get_info($iban_country, 'bban_example');
 	}
 
 	/**
 	 *  Get the BBAN format (in SWIFT format) for an IBAN country
 	 */
-	public static function iban_country_get_bban_format_swift($iban_country){
+	public static function iban_country_get_bban_format_swift(string $iban_country): false|string{
 		return self::_iban_country_get_info($iban_country, 'bban_format_swift');
 	}
 
 	/**
 	 *  Get the BBAN format (as a regular expression) for an IBAN country
 	 */
-	public static function iban_country_get_bban_format_regex($iban_country){
+	public static function iban_country_get_bban_format_regex(string $iban_country): false|string{
 		return self::_iban_country_get_info($iban_country, 'bban_format_regex');
 	}
 
 	/**
 	 *  Get the BBAN length for an IBAN country
 	 */
-	public static function iban_country_get_bban_length($iban_country){
+	public static function iban_country_get_bban_length(string $iban_country): false|string{
 		return self::_iban_country_get_info($iban_country, 'bban_length');
 	}
 
 	/**
 	 *  Get the IBAN example for an IBAN country
 	 */
-	public static function iban_country_get_iban_example($iban_country){
+	public static function iban_country_get_iban_example(string $iban_country): false|string{
 		return self::_iban_country_get_info($iban_country, 'iban_example');
 	}
 
 	/**
 	 *  Get the IBAN format (in SWIFT format) for an IBAN country
 	 */
-	public static function iban_country_get_iban_format_swift($iban_country){
+	public static function iban_country_get_iban_format_swift(string $iban_country): false|string{
 		return self::_iban_country_get_info($iban_country, 'iban_format_swift');
 	}
 
 	/**
 	 *  Get the IBAN format (as a regular expression) for an IBAN country
 	 */
-	public static function iban_country_get_iban_format_regex($iban_country){
+	public static function iban_country_get_iban_format_regex(string $iban_country): false|string{
 		return self::_iban_country_get_info($iban_country, 'iban_format_regex');
 	}
 
 	/**
 	 *  Get the IBAN length for an IBAN country
 	 */
-	public static function iban_country_get_iban_length($iban_country){
+	public static function iban_country_get_iban_length(string $iban_country): false|string{
 		return self::_iban_country_get_info($iban_country, 'iban_length');
 	}
 
 	/**
 	 *  Get the BBAN Bank ID start offset for an IBAN country
 	 */
-	public static function iban_country_get_bankid_start_offset($iban_country){
+	public static function iban_country_get_bankid_start_offset(string $iban_country): false|string{
 		return self::_iban_country_get_info($iban_country, 'bban_bankid_start_offset');
 	}
 
 	/**
 	 *  Get the BBAN Bank ID stop offset for an IBAN country
 	 */
-	public static function iban_country_get_bankid_stop_offset($iban_country){
+	public static function iban_country_get_bankid_stop_offset(string $iban_country): false|string{
 		return self::_iban_country_get_info($iban_country, 'bban_bankid_stop_offset');
 	}
 
 	/**
 	 *  Get the BBAN Branch ID start offset for an IBAN country
 	 */
-	public static function iban_country_get_branchid_start_offset($iban_country){
+	public static function iban_country_get_branchid_start_offset(string $iban_country): false|string{
 		return self::_iban_country_get_info($iban_country, 'bban_branchid_start_offset');
 	}
 
 	/**
 	 *  Get the BBAN Branch ID stop offset for an IBAN country
 	 */
-	public static function iban_country_get_branchid_stop_offset($iban_country){
+	public static function iban_country_get_branchid_stop_offset(string $iban_country): false|string{
 		return self::_iban_country_get_info($iban_country, 'bban_branchid_stop_offset');
 	}
 
@@ -422,7 +425,7 @@ final class IbanLoad{
 	 *  Get the BBAN (national) checksum start offset for an IBAN country
 	 *   Returns '' when (often) not present)
 	 */
-	public static function iban_country_get_nationalchecksum_start_offset($iban_country){
+	public static function iban_country_get_nationalchecksum_start_offset(string $iban_country): false|string{
 		return self::_iban_country_get_info($iban_country, 'bban_checksum_start_offset');
 	}
 
@@ -430,49 +433,49 @@ final class IbanLoad{
 	 *  Get the BBAN (national) checksum stop offset for an IBAN country
 	 *   Returns '' when (often) not present)
 	 */
-	public static function iban_country_get_nationalchecksum_stop_offset($iban_country){
+	public static function iban_country_get_nationalchecksum_stop_offset(string $iban_country): false|string{
 		return self::_iban_country_get_info($iban_country, 'bban_checksum_stop_offset');
 	}
 
 	/**
 	 *  Get the registry edition for an IBAN country
 	 */
-	public static function iban_country_get_registry_edition($iban_country){
+	public static function iban_country_get_registry_edition(string $iban_country): false|string{
 		return self::_iban_country_get_info($iban_country, 'registry_edition');
 	}
 
 	/**
 	 *  Is the IBAN country one official issued by SWIFT?
 	 */
-	public static function iban_country_get_country_swift_official($iban_country){
+	public static function iban_country_get_country_swift_official(string $iban_country): false|string{
 		return self::_iban_country_get_info($iban_country, 'country_swift_official');
 	}
 
 	/**
 	 *  Is the IBAN country a SEPA member?
 	 */
-	public static function iban_country_is_sepa($iban_country){
+	public static function iban_country_is_sepa(string $iban_country): false|string{
 		return self::_iban_country_get_info($iban_country, 'country_sepa');
 	}
 
 	/**
 	 *  Get the IANA code of an IBAN country
 	 */
-	public static function iban_country_get_iana($iban_country){
+	public static function iban_country_get_iana(string $iban_country): false|string{
 		return self::_iban_country_get_info($iban_country, 'country_iana');
 	}
 
 	/**
 	 *  Get the ISO3166-1 alpha-2 code of an IBAN country
 	 */
-	public static function iban_country_get_iso3166($iban_country){
+	public static function iban_country_get_iso3166(string $iban_country): false|string{
 		return self::_iban_country_get_info($iban_country, 'country_iso3166');
 	}
 
 	/**
 	 *  Get the parent registrar IBAN country of an IBAN country
 	 */
-	public static function iban_country_get_parent_registrar($iban_country){
+	public static function iban_country_get_parent_registrar(string $iban_country): false|string{
 		return self::_iban_country_get_info($iban_country, 'parent_registrar');
 	}
 
@@ -480,7 +483,7 @@ final class IbanLoad{
 	 *  Get the official currency of an IBAN country as an ISO4217 alpha code
 	 *  (Note: Returns '' if there is no official currency, eg. for AA (IIBAN))
 	 */
-	public static function iban_country_get_currency_iso4217($iban_country){
+	public static function iban_country_get_currency_iso4217(string $iban_country): false|string{
 		return self::_iban_country_get_info($iban_country, 'currency_iso4217');
 	}
 
@@ -489,10 +492,10 @@ final class IbanLoad{
 	 *  (Note: Returns '' if there is no central bank. Also, note that
 	 *         sometimes multiple countries share one central bank)
 	 */
-	public static function iban_country_get_central_bank_url($iban_country){
+	public static function iban_country_get_central_bank_url(string $iban_country): false|string{
 		$result = self::_iban_country_get_info($iban_country, 'central_bank_url');
 		if ($result != ''){
-			$result = 'http://'.$result.'/';
+			$result = 'https://'.$result.'/';
 		}
 		return $result;
 	}
@@ -502,14 +505,15 @@ final class IbanLoad{
 	 *  (Note: Returns '' if there is no central bank. Also, note that
 	 *         sometimes multiple countries share one central bank)
 	 */
-	public static function iban_country_get_central_bank_name($iban_country){
+	public static function iban_country_get_central_bank_name(string $iban_country): false|string{
 		return self::_iban_country_get_info($iban_country, 'central_bank_name');
 	}
 
 	/**
 	 *  Get the list of all IBAN countries
+	 * @return list<string>
 	 */
-	public static function iban_countries(){
+	public static function iban_countries(): array{
 		self::_iban_load_registry();
 
 		return array_keys(self::$_iban_registry);
@@ -519,7 +523,7 @@ final class IbanLoad{
 	 *  Get the membership of an IBAN country
 	 *  (Note: Possible Values eu_member, efta_member, other_member, non_member)
 	 */
-	public static function iban_country_get_membership($iban_country){
+	public static function iban_country_get_membership(string $iban_country): string|false{
 		return self::_iban_country_get_info($iban_country, 'membership');
 	}
 
@@ -527,7 +531,7 @@ final class IbanLoad{
 	 *  Get the membership of an IBAN country
 	 *  (Note: Possible Values eu_member, efta_member, other_member, non_member)
 	 */
-	public static function iban_country_get_is_eu_member($iban_country){
+	public static function iban_country_get_is_eu_member(string $iban_country): bool{
 		$membership = self::_iban_country_get_info($iban_country, 'membership');
 		if ($membership === 'eu_member'){
 			$result = true;
@@ -552,8 +556,9 @@ final class IbanLoad{
 	 *   - utilize format knowledge with regards to alphanumeric applicability in that offset in that national BBAN format
 	 *   - turkish TL/TK thing
 	 *   - norway NO gets dropped due to mis-identification with "No." for number (ie. if no country code try prepending NO)
+	 * @return list<string>
 	 */
-	public static function iban_mistranscription_suggestions($incorrect_iban){
+	public static function iban_mistranscription_suggestions(string $incorrect_iban): array{
 
 		# remove funky characters
 		$incorrect_iban = self::iban_to_machine_format($incorrect_iban);
@@ -595,7 +600,7 @@ final class IbanLoad{
 					$possible_iban = substr($incorrect_iban, 0, $i).$possible_origin.substr($incorrect_iban, $i + 1);
 					# if the checksum passes, return it as a possibility
 					if (self::verify_iban($possible_iban)){
-						array_push($suggestions, $possible_iban);
+						$suggestions[] = $possible_iban;
 					}
 				}
 			}
@@ -621,7 +626,7 @@ final class IbanLoad{
 				foreach ($_iban_mistranscriptions[$char] as $possible_origin){
 					$possible_iban = str_replace($char, $possible_origin, $incorrect_iban);
 					if (self::verify_iban($possible_iban)){
-						array_push($suggestions, $possible_iban);
+						$suggestions[] = $possible_iban;
 					}
 				}
 			}
@@ -630,12 +635,16 @@ final class IbanLoad{
 		return $suggestions;
 	}
 	##### internal use functions - safe to ignore ######
+
+	/**
+	 * @var array<string,array<string,string>>
+	 */
 	private static array $_iban_registry = [];
 
 	/**
 	 * Load the IBAN registry from disk.
 	 */
-	public static function _iban_load_registry(): void{
+	private static function _iban_load_registry(): void{
 
 		# if the registry is not yet loaded, or has been corrupted, reload
 		if (!is_array(self::$_iban_registry) || count(self::$_iban_registry) < 1){
@@ -646,7 +655,8 @@ final class IbanLoad{
 			foreach ($lines as $line){
 				if ($line != ''){
 					# avoid spewing tonnes of PHP warnings under bad PHP configs - see issue #69
-					if (function_exists('ini_set')){
+					$setExits = function_exists('ini_set');
+					if ($setExits){
 						# split to fields
 						$old_display_errors_value = ini_get('display_errors');
 						ini_set('display_errors', false);
@@ -655,9 +665,9 @@ final class IbanLoad{
 					}
 					[$country, $country_name, $domestic_example, $bban_example, $bban_format_swift, $bban_format_regex, $bban_length, $iban_example, $iban_format_swift, $iban_format_regex, $iban_length, $bban_bankid_start_offset, $bban_bankid_stop_offset, $bban_branchid_start_offset, $bban_branchid_stop_offset, $registry_edition, $country_sepa, $country_swift_official, $bban_checksum_start_offset, $bban_checksum_stop_offset, $country_iana, $country_iso3166, $parent_registrar, $currency_iso4217, $central_bank_url, $central_bank_name, $membership] = explode('|', $line);
 					# avoid spewing tonnes of PHP warnings under bad PHP configs - see issue #69
-					if (function_exists('ini_set')){
-						ini_set('display_errors', $old_display_errors_value);
-						ini_set('error_reporting', $old_error_reporting_value);
+					if ($setExits){
+						ini_set('display_errors', $old_display_errors_value);//@phpstan-ignore-line
+						ini_set('error_reporting', $old_error_reporting_value);//@phpstan-ignore-line
 					}
 					# assign to registry
 					self::$_iban_registry[$country] = [
@@ -687,7 +697,7 @@ final class IbanLoad{
 						'currency_iso4217'           => $currency_iso4217,
 						'central_bank_url'           => $central_bank_url,
 						'central_bank_name'          => $central_bank_name,
-						'membership'                 => $membership
+						'membership'                 => $membership,
 					];
 				}
 			}
@@ -697,7 +707,7 @@ final class IbanLoad{
 	/**
 	 *  Get information from the IBAN registry by example IBAN / code combination
 	 */
-	public static function _iban_get_info($iban, $code){
+	private static function _iban_get_info(string $iban, ?string $code): false|string{
 		$country = self::iban_get_country_part($iban);
 		return self::_iban_country_get_info($country, $code);
 	}
@@ -705,7 +715,7 @@ final class IbanLoad{
 	/**
 	 *  Get information from the IBAN registry by country / code combination
 	 */
-	public static function _iban_country_get_info($country, $code){
+	public static function _iban_country_get_info(?string $country, ?string $code): string|false{
 		if (is_null($country) || is_null($code)){
 			return false;
 		}
@@ -724,7 +734,7 @@ final class IbanLoad{
 	/**
 	 *  Load common mistranscriptions from disk.
 	 */
-	public static function _iban_load_mistranscriptions(){
+	public static function _iban_load_mistranscriptions(): bool{
 		global $_iban_mistranscriptions;
 		# do not reload if already present
 		if (is_array($_iban_mistranscriptions) && count($_iban_mistranscriptions) == 36){
@@ -753,19 +763,19 @@ final class IbanLoad{
 
 	/**
 	 *  Find the correct national checksum for an IBAN
-	 *   (Returns the correct national checksum as a string, or '' if unimplemented for this IBAN's country)
+	 * @return string|''  (Returns the correct national checksum as a string, or '' if unimplemented for this IBAN's country)
 	 *   (NOTE: only works for some countries)
 	 */
-	public static function iban_find_nationalchecksum($iban){
+	public static function iban_find_nationalchecksum(string $iban): string{
 		return self::_iban_nationalchecksum_implementation($iban, 'find');
 	}
 
 	/**
 	 *  Verify the correct national checksum for an IBAN
-	 *   (Returns true or false, or '' if unimplemented for this IBAN's country)
+	 * @return bool|''  (Returns true or false, or '' if unimplemented for this IBAN's country)
 	 *   (NOTE: only works for some countries)
 	 */
-	public static function iban_verify_nationalchecksum($iban){
+	public static function iban_verify_nationalchecksum(string $iban): bool|string{
 		return self::_iban_nationalchecksum_implementation($iban, 'verify');
 	}
 
@@ -774,7 +784,7 @@ final class IbanLoad{
 	 *   (Returns the (possibly) corrected IBAN, or '' if unimplemented for this IBAN's country)
 	 *   (NOTE: only works for some countries)
 	 */
-	public static function iban_set_nationalchecksum($iban){
+	public static function iban_set_nationalchecksum(string $iban): string{
 		$result = self::_iban_nationalchecksum_implementation($iban, 'set');
 		if ($result != ''){
 			$result = self::iban_set_checksum($result); # recalculate IBAN-level checksum
@@ -785,7 +795,7 @@ final class IbanLoad{
 	/**
 	 *  Internal function to overwrite the national checksum portion of an IBAN
 	 */
-	public static function _iban_nationalchecksum_set($iban, $nationalchecksum){
+	public static function _iban_nationalchecksum_set(string $iban, string $nationalchecksum): string{
 		$country = self::iban_get_country_part($iban);
 		$start = self::iban_country_get_nationalchecksum_start_offset($country);
 		if ($start == ''){
@@ -798,10 +808,11 @@ final class IbanLoad{
 		# determine the BBAN
 		$bban = self::iban_get_bban_part($iban);
 		# alter the BBAN
-		$firstbit = substr($bban, 0, $start);  # 'string before the checksum'
-		$lastbit = substr($bban, $stop + 1);    # 'string after the checksum'
+		$firstbit = substr($bban, 0, (int)$start);  # 'string before the checksum'
+		$lastbit = substr($bban, (int)$stop + 1);    # 'string after the checksum'
 		$fixed_bban = $firstbit.$nationalchecksum.$lastbit;
 		# reconstruct the fixed IBAN
+		/** @noinspection PhpUnnecessaryLocalVariableInspection */
 		$fixed_iban = $country.self::iban_get_checksum_part($iban).$fixed_bban;
 		return $fixed_iban;
 	}
@@ -810,11 +821,12 @@ final class IbanLoad{
 	 *  Currently unused but may be useful for Norway.
 	 *  ISO7064 MOD11-2
 	 *  Adapted from https://gist.github.com/andreCatita/5714353 by Andrew Catita
+	 * @param numeric-string $input
 	 */
-	public static function _iso7064_mod112_catita($input){
+	public static function _iso7064_mod112_catita(string $input): int|string{
 		$p = 0;
 		for ($i = 0; $i < strlen($input); $i++){
-			$c = $input[$i];
+			$c = (int)$input[$i];
 			$p = 2 * ($p + $c);
 		}
 		$p %= 11;
@@ -830,15 +842,15 @@ final class IbanLoad{
 	 *  ISO 7064:1983.MOD 11-2
 	 *  by goseaside@sina.com
 	 */
-	public static function _iso7064_mod112_goseaside($vString){
+	public static function _iso7064_mod112_goseaside(string $vString): string{
 		$sigma = '';
 		$wi = [1, 2, 4, 8, 5, 10, 9, 7, 3, 6];
 		$hash_map = ['1', '0', 'X', '9', '8', '7', '6', '5', '4', '3', '2'];
 		$i_size = strlen($vString);
-		$bModify = '?' == substr($vString, -1);
+		$bModify = str_ends_with($vString, '?');
 		$i_size1 = $bModify ? $i_size : $i_size + 1;
 		for ($i = 1; $i <= $i_size; $i++){
-			$i1 = $vString[$i - 1] * 1;
+			$i1 = (int)$vString[$i - 1];
 			$w1 = $wi[($i_size1 - $i) % 10];
 			$sigma += ($i1 * $w1) % 11;
 		}
@@ -852,7 +864,7 @@ final class IbanLoad{
 	 *  ISO7064 MOD97-10 (Bosnia, etc.)
 	 *  (Credit: Adapted from https://github.com/stvkoch/ISO7064-Mod-97-10/blob/master/ISO7064Mod97_10.php)
 	 */
-	public static function _iso7064_mod97_10($str){
+	public static function _iso7064_mod97_10(string $str): false|int{
 		$ai = 1;
 		$ch = ord($str[strlen($str) - 1]) - 48;
 		if ($ch < 0 || $ch > 9) return false;
@@ -861,7 +873,7 @@ final class IbanLoad{
 			$ch = ord($str[$i]) - 48;
 			if ($ch < 0 || $ch > 9) return false;
 			$ai = ($ai * 10) % 97;
-			$check += ($ai * ((int)$ch));
+			$check += ($ai * ($ch));
 		}
 		return (98 - ($check % 97));
 	}
@@ -869,36 +881,33 @@ final class IbanLoad{
 	/**
 	 *  Implement the national checksum for a Belgium (BE) IBAN
 	 *   (Credit: @gaetan-be, fixed by @Olympic1)
+	 * @param 'set'|'find'|'verify' $mode
+	 * @return ($mode is 'set' ? string : ($mode is 'verify' ? bool : int) )
 	 */
-	public static function _iban_nationalchecksum_implementation_be($iban, $mode){
-		if ($mode != 'set' && $mode != 'find' && $mode != 'verify'){
-			return '';
-		} # blank value on return to distinguish from correct execution
+	private static function _iban_nationalchecksum_implementation_be(string $iban, string $mode): bool|int|string{
 		$nationalchecksum = self::iban_get_nationalchecksum_part($iban);
 		$bban = self::iban_get_bban_part($iban);
-		$bban_less_checksum = substr($bban, 0, -strlen($nationalchecksum));
+		$bban_less_checksum = (int)substr($bban, 0, -strlen($nationalchecksum));
 		$expected_nationalchecksum = $bban_less_checksum % 97;
-		if ($mode == 'find'){
-			return $expected_nationalchecksum;
-		}
-		elseif ($mode == 'set'){
-			return self::_iban_nationalchecksum_set($iban, $expected_nationalchecksum);
-		}
-		elseif ($mode == 'verify'){
-			return ($nationalchecksum == $expected_nationalchecksum);
-		}
+		return match ($mode) {
+			'find' => $expected_nationalchecksum,
+			'set' => self::_iban_nationalchecksum_set($iban, (string)$expected_nationalchecksum),
+			'verify' => ($nationalchecksum == $expected_nationalchecksum)
+		};
 	}
 
 	/**
 	 *  MOD11 helper function for the Spanish (ES) IBAN national checksum implementation
 	 *   (Credit: @dem3trio, code lifted from Spanish Wikipedia at https://es.wikipedia.org/wiki/C%C3%B3digo_cuenta_cliente)
+	 * @param numeric-string $numero
+	 * @return int<0,9>|'?'
 	 */
-	public static function _iban_nationalchecksum_implementation_es_mod11_helper($numero){
+	public static function _iban_nationalchecksum_implementation_es_mod11_helper(string $numero): int|string{
 		if (strlen($numero) != 10) return "?";
 		$cifras = [1, 2, 4, 8, 5, 10, 9, 7, 3, 6];
 		$chequeo = 0;
 		for ($i = 0; $i < 10; $i++){
-			$chequeo += substr($numero, $i, 1) * $cifras[$i];
+			$chequeo += ((int)substr($numero, $i, 1)) * $cifras[$i];
 		}
 		$chequeo = 11 - ($chequeo % 11);
 		if ($chequeo == 11) $chequeo = 0;
@@ -909,11 +918,10 @@ final class IbanLoad{
 	/**
 	 *  Implement the national checksum for a Spanish (ES) IBAN
 	 *   (Credit: @dem3trio, adapted from code on Spanish Wikipedia at https://es.wikipedia.org/wiki/C%C3%B3digo_cuenta_cliente)
+	 * @param 'set'|'find'|'verify' $mode
+	 * @return ($mode is 'set' ? string : ($mode is 'verify' ? bool : numeric-string) )
 	 */
-	public static function _iban_nationalchecksum_implementation_es($iban, $mode){
-		if ($mode != 'set' && $mode != 'find' && $mode != 'verify'){
-			return '';
-		} # blank value on return to distinguish from correct execution
+	private static function _iban_nationalchecksum_implementation_es(string $iban, string $mode): bool|string{
 		# extract appropriate substrings
 		$bankprefix = self::iban_get_bank_part($iban).self::iban_get_branch_part($iban);
 		$nationalchecksum = self::iban_get_nationalchecksum_part($iban);
@@ -923,27 +931,24 @@ final class IbanLoad{
 		$expected_nationalchecksum = self::_iban_nationalchecksum_implementation_es_mod11_helper("00".$bankprefix);
 		# then we append the second digit, which is MOD11 of the account
 		$expected_nationalchecksum .= self::_iban_nationalchecksum_implementation_es_mod11_helper($account_less_checksum);
-		if ($mode == 'find'){
-			return $expected_nationalchecksum;
-		}
-		elseif ($mode == 'set'){
-			return self::_iban_nationalchecksum_set($iban, $expected_nationalchecksum);
-		}
-		elseif ($mode == 'verify'){
-			return ($nationalchecksum == $expected_nationalchecksum);
-		}
+		return match ($mode) {
+			'find' => $expected_nationalchecksum,
+			'set' => self::_iban_nationalchecksum_set($iban, $expected_nationalchecksum),
+			'verify' => ($nationalchecksum == $expected_nationalchecksum)
+		};
 	}
 
 	/**
 	 *  Helper function for the France (FR) BBAN national checksum implementation
 	 *   (Credit: @gaetan-be)
+	 * @return ?numeric-string
 	 */
-	public static function _iban_nationalchecksum_implementation_fr_letters2numbers_helper($bban){
+	private static function _iban_nationalchecksum_implementation_fr_letters2numbers_helper(string $bban): ?string{
 		$allNumbers = "";
 		$conversion = [
 			"A" => 1, "B" => 2, "C" => 3, "D" => 4, "E" => 5, "F" => 6, "G" => 7, "H" => 8, "I" => 9,
 			"J" => 1, "K" => 2, "L" => 3, "M" => 4, "N" => 5, "O" => 6, "P" => 7, "Q" => 8, "R" => 9,
-			"S" => 2, "T" => 3, "U" => 4, "V" => 5, "W" => 6, "X" => 7, "Y" => 8, "Z" => 9
+			"S" => 2, "T" => 3, "U" => 4, "V" => 5, "W" => 6, "X" => 7, "Y" => 8, "Z" => 9,
 		];
 		for ($i = 0; $i < strlen($bban); $i++){
 			if (is_numeric($bban[$i])){
@@ -964,51 +969,65 @@ final class IbanLoad{
 
 	/**
 	 *  Implement the national checksum for a Chad (TD) IBAN
+	 * @param 'set'|'find'|'verify' $mode
+	 * @return ($mode is 'set' ? string : ($mode is 'verify' ? bool : numeric-string) )
 	 */
-	public static function _iban_nationalchecksum_implementation_td($iban, $mode){
+	private static function _iban_nationalchecksum_implementation_td(string $iban, string $mode): bool|string{
 		return self::_iban_nationalchecksum_implementation_fr($iban, $mode);
 	}
 
 	/**
 	 *  Implement the national checksum for a Comoros (KM) IBAN
+	 * @param 'set'|'find'|'verify' $mode
+	 * @return ($mode is 'set' ? string : ($mode is 'verify' ? bool : numeric-string) )
 	 */
-	public static function _iban_nationalchecksum_implementation_km($iban, $mode){
+	private static function _iban_nationalchecksum_implementation_km(string $iban, string $mode): bool|string{
 		return self::_iban_nationalchecksum_implementation_fr($iban, $mode);
 	}
 
 	/**
 	 *  Implement the national checksum for a Congo (CG) IBAN
+	 * @param 'set'|'find'|'verify' $mode
+	 * @return ($mode is 'set' ? string : ($mode is 'verify' ? bool : numeric-string) )
 	 */
-	public static function _iban_nationalchecksum_implementation_cg($iban, $mode){
+	private static function _iban_nationalchecksum_implementation_cg(string $iban, string $mode): bool|string{
 		return self::_iban_nationalchecksum_implementation_fr($iban, $mode);
 	}
 
 	/**
 	 *  Implement the national checksum for a Djibouti (DJ) IBAN
+	 * @param 'set'|'find'|'verify' $mode
+	 * @return ($mode is 'set' ? string : ($mode is 'verify' ? bool : numeric-string) )
 	 */
-	public static function _iban_nationalchecksum_implementation_dj($iban, $mode){
+	private static function _iban_nationalchecksum_implementation_dj(string $iban, string $mode): bool|string{
 		return self::_iban_nationalchecksum_implementation_fr($iban, $mode);
 	}
 
 	/**
 	 *  Implement the national checksum for an Equitorial Guinea (GQ) IBAN
+	 * @param 'set'|'find'|'verify' $mode
+	 * @return ($mode is 'set' ? string : ($mode is 'verify' ? bool : numeric-string) )
 	 */
-	public static function _iban_nationalchecksum_implementation_gq($iban, $mode){
+	private static function _iban_nationalchecksum_implementation_gq(string $iban, string $mode): bool|string{
 		return self::_iban_nationalchecksum_implementation_fr($iban, $mode);
 	}
 
 	/**
 	 *  Implement the national checksum for a Gabon (GA) IBAN
+	 * @param 'set'|'find'|'verify' $mode
+	 * @return ($mode is 'set' ? string : ($mode is 'verify' ? bool : numeric-string) )
 	 */
-	public static function _iban_nationalchecksum_implementation_ga($iban, $mode){
+	private static function _iban_nationalchecksum_implementation_ga(string $iban, string $mode): bool|string{
 		return self::_iban_nationalchecksum_implementation_fr($iban, $mode);
 	}
 
 	/**
 	 *  Implement the national checksum for a Monaco (MC) IBAN
 	 *   (Credit: @gaetan-be)
+	 * @param 'set'|'find'|'verify' $mode
+	 * @return ($mode is 'set' ? string : ($mode is 'verify' ? bool : numeric-string) )
 	 */
-	public static function _iban_nationalchecksum_implementation_mc($iban, $mode){
+	private static function _iban_nationalchecksum_implementation_mc(string $iban, string $mode): bool|string{
 		return self::_iban_nationalchecksum_implementation_fr($iban, $mode);
 	}
 
@@ -1016,11 +1035,10 @@ final class IbanLoad{
 	 *  Implement the national checksum for a France (FR) IBAN
 	 *   (Credit: @gaetan-be, http://www.credit-card.be/BankAccount/ValidationRules.htm#FR_Validation and
 	 *            https://docs.oracle.com/cd/E18727_01/doc.121/e13483/T359831T498954.htm)
+	 * @param 'set'|'find'|'verify' $mode
+	 * @return ($mode is 'set' ? string : ($mode is 'verify' ? bool : numeric-string) )
 	 */
-	public static function _iban_nationalchecksum_implementation_fr($iban, $mode){
-		if ($mode != 'set' && $mode != 'find' && $mode != 'verify'){
-			return '';
-		} # blank value on return to distinguish from correct execution
+	private static function _iban_nationalchecksum_implementation_fr(string $iban, string $mode): bool|string{
 		# first, extract the BBAN
 		$bban = self::iban_get_bban_part($iban);
 		# convert to numeric form
@@ -1034,36 +1052,29 @@ final class IbanLoad{
 		$branch = substr($bban_numeric_form, 5, 5);
 		$account = substr($bban_numeric_form, 10, 11);
 		# actual implementation: mod97( (89 x bank number "Code banque") + (15 x branch code "Code guichet") + (3 x account number "Numéro de compte") )
-		$sum = (89 * ($bank + 0)) + ((15 * ($branch + 0)));
-		$sum += (3 * ($account + 0));
+		$sum = (89 * ((int)$bank)) + ((15 * ((int)$branch)));
+		$sum += (3 * ((int)$account));
 		$expected_nationalchecksum = 97 - ($sum % 97);
-		if (strlen($expected_nationalchecksum) == 1){
+		if (strlen((string)$expected_nationalchecksum) == 1){
 			$expected_nationalchecksum = '0'.$expected_nationalchecksum;
 		}
 		# return
-		if ($mode == 'find'){
-			return $expected_nationalchecksum;
-		}
-		elseif ($mode == 'set'){
-			return self::_iban_nationalchecksum_set($iban, $expected_nationalchecksum);
-		}
-		elseif ($mode == 'verify'){
-			return (self::iban_get_nationalchecksum_part($iban) == $expected_nationalchecksum);
-		}
+		return match ($mode) {
+			'find' => $expected_nationalchecksum,
+			'set' => self::_iban_nationalchecksum_set($iban, $expected_nationalchecksum),
+			'verify' => (self::iban_get_nationalchecksum_part($iban) == $expected_nationalchecksum)
+		};
 	}
 
 	/**
 	 *  Implement the national checksum for a Norway (NO) IBAN
 	 *   (NOTE: Built from description at https://docs.oracle.com/cd/E18727_01/doc.121/e13483/T359831T498954.htm, not well tested)
+	 * @param 'set'|'find'|'verify' $mode
+	 * @return ($mode is 'set' ? string : ($mode is 'verify' ? bool : numeric-string|int) )
 	 */
-	public static function _iban_nationalchecksum_implementation_no($iban, $mode){
-		if ($mode != 'set' && $mode != 'find' && $mode != 'verify'){
-			return '';
-		} # blank value on return to distinguish from correct execution
+	private static function _iban_nationalchecksum_implementation_no(string $iban, string $mode): bool|int|string{
 		# first, extract the BBAN
 		$bban = self::iban_get_bban_part($iban);
-		# then, the account
-		$account = self::iban_get_account_part($iban);
 		# existing checksum
 		$nationalchecksum = self::iban_get_nationalchecksum_part($iban);
 		# bban less checksum
@@ -1073,41 +1084,31 @@ final class IbanLoad{
 		# calculate checksum
 		$total = 0;
 		for ($i = 0; $i < 10; $i++){
-			$total += $bban_less_checksum[$i] * $factors[$i];
+			$total += (int)$bban_less_checksum[$i] * $factors[$i];
 		}
-		$total += $nationalchecksum;
+		$total += (int)$nationalchecksum;
 		# mod11
 		$remainder = $total % 11;
 		# to find the correct check digit, we add the remainder to the current check digit,
 		#  mod10 (ie. rounding at 10, such that 10 = 0, 11 = 1, etc.)
-		$calculated_checksum = ($nationalchecksum + $remainder) % 10;
-		if ($mode == 'find'){
-			if ($remainder == 0){
-				return $nationalchecksum;
-			}
-			else{
-				return $calculated_checksum;
-			}
-		}
-		elseif ($mode == 'set'){
-			return self::_iban_nationalchecksum_set($iban, $calculated_checksum);
-		}
-		elseif ($mode == 'verify'){
-			if ($remainder == 0){
-				return true;
-			}
-			return false;
-		}
+		$calculated_checksum = ((int)$nationalchecksum + $remainder) % 10;
+
+		return match ($mode) {
+			'find' => $remainder == 0 ? $nationalchecksum : $calculated_checksum,
+			'set' => self::_iban_nationalchecksum_set($iban, (string)$calculated_checksum),
+			'verify' => $remainder == 0
+		};
 	}
 
 	/**
 	 *  ISO/IEC 7064, MOD 11-2
-	 *  @param $input string Must contain only characters ('0123456789').
-	 *  @output A 1 character string containing '0123456789X',
-	 *          or '' (empty string) on failure due to bad input.
-	 *  (Credit: php-iso7064 @ https://github.com/globalcitizen/php-iso7064)
+	 * @param string $input Must contain only characters ('0123456789').
+	 * @output A 1 character string containing '0123456789X',
+	 *                      or '' (empty string) on failure due to bad input.
+	 *                      (Credit: php-iso7064 @ https://github.com/globalcitizen/php-iso7064)
+	 * @return string
 	 */
-	public static function _iso7064_mod11_2($input){
+	public static function _iso7064_mod11_2(string $input): string{
 		$input = strtoupper($input); # normalize
 		if (!preg_match('/^[0123456789]+$/', $input)){
 			return '';
@@ -1118,7 +1119,7 @@ final class IbanLoad{
 		$p = 0;
 		for ($i = 0; $i < strlen($input); $i++){
 			$val = strpos($output_values, substr($input, $i, 1));
-			if ($val < 0){
+			if ($val === false){
 				return '';
 			} # illegal character encountered
 			$p = (($p + $val) * $radix) % $modulus;
@@ -1129,38 +1130,30 @@ final class IbanLoad{
 
 	/**
 	 *  Implement the national checksum systems based on ISO7064 MOD11-2 Algorithm
+	 * @param 'set'|'find'|'verify' $mode
+	 * @return ($mode is 'set' ? string : ($mode is 'verify' ? bool : numeric-string) )
 	 */
-	public static function _iban_nationalchecksum_implementation_iso7064_mod11_2($iban, $mode, $drop_at_front = 0, $drop_at_end = 1){
-		if ($mode != 'set' && $mode != 'find' && $mode != 'verify'){
-			return '';
-		} # blank value on return to distinguish from correct execution
+	public static function _iban_nationalchecksum_implementation_iso7064_mod11_2(string $iban, string $mode, int $drop_at_front = 0, int $drop_at_end = 1): bool|string{
 		# first, extract the BBAN
 		$bban = self::iban_get_bban_part($iban);
-		# get the current and computed checksum
-		$nationalchecksum = self::iban_get_nationalchecksum_part($iban);
 		# drop characters from the front and end of the BBAN as requested
 		$bban_less_checksum = substr($bban, $drop_at_front, strlen($bban) - $drop_at_end);
 		# calculate expected checksum
 		$expected_nationalchecksum = self::_iso7064_mod11_2($bban_less_checksum);
 		# return
-		if ($mode == 'find'){
-			return $expected_nationalchecksum;
-		}
-		elseif ($mode == 'set'){
-			return self::_iban_nationalchecksum_set($iban, $expected_nationalchecksum);
-		}
-		elseif ($mode == 'verify'){
-			return (self::iban_get_nationalchecksum_part($iban) == $expected_nationalchecksum);
-		}
+		return match ($mode) {
+			'find' => $expected_nationalchecksum,
+			'set' => self::_iban_nationalchecksum_set($iban, $expected_nationalchecksum),
+			'verify' => (self::iban_get_nationalchecksum_part($iban) == $expected_nationalchecksum)
+		};
 	}
 
 	/**
 	 *  Implement the national checksum systems based on Damm Algorithm
+	 * @param 'set'|'find'|'verify' $mode
+	 * @return ($mode is 'set' ? string : ($mode is 'verify' ? bool : int|'') )
 	 */
-	public static function _iban_nationalchecksum_implementation_damm($iban, $mode){
-		if ($mode != 'set' && $mode != 'find' && $mode != 'verify'){
-			return '';
-		} # blank value on return to distinguish from correct execution
+	private static function _iban_nationalchecksum_implementation_damm(string $iban, string $mode): bool|int|string{
 		# first, extract the BBAN
 		$bban = self::iban_get_bban_part($iban);
 		# get the current and computed checksum
@@ -1170,21 +1163,17 @@ final class IbanLoad{
 		# calculate expected checksum
 		$expected_nationalchecksum = self::_damm($bban_less_checksum);
 		# return
-		if ($mode == 'find'){
-			return $expected_nationalchecksum;
-		}
-		elseif ($mode == 'set'){
-			return self::_iban_nationalchecksum_set($iban, $expected_nationalchecksum);
-		}
-		elseif ($mode == 'verify'){
-			return (self::iban_get_nationalchecksum_part($iban) == $expected_nationalchecksum);
-		}
+		return match ($mode) {
+			'find' => $expected_nationalchecksum,
+			'set' => self::_iban_nationalchecksum_set($iban, $expected_nationalchecksum),
+			'verify' => (self::iban_get_nationalchecksum_part($iban) == $expected_nationalchecksum)
+		};
 	}
 
 	/**
 	 *  Implement the national checksum systems based on Verhoeff Algorithm
 	 */
-	public static function _iban_nationalchecksum_implementation_verhoeff($iban, $mode, $strip_length_end, $strip_length_front = 0){
+	public static function _iban_nationalchecksum_implementation_verhoeff(string $iban, string $mode, int $strip_length_end, int $strip_length_front = 0): bool|string|int{
 		if ($mode != 'set' && $mode != 'find' && $mode != 'verify'){
 			return '';
 		} # blank value on return to distinguish from correct execution
@@ -1195,28 +1184,24 @@ final class IbanLoad{
 		# drop the trailing checksum digit
 		$bban_less_checksum = substr($bban, 0, strlen($bban) - $strip_length_end);
 		# get the current and computed checksum
-		$nationalchecksum = self::iban_get_nationalchecksum_part($iban);
 		$expected_nationalchecksum = self::_verhoeff($bban_less_checksum);
 		# return
-		if ($mode == 'find'){
-			return $expected_nationalchecksum;
-		}
-		elseif ($mode == 'set'){
-			return self::_iban_nationalchecksum_set($iban, $expected_nationalchecksum);
-		}
-		elseif ($mode == 'verify'){
-			return (self::iban_get_nationalchecksum_part($iban) == $expected_nationalchecksum);
-		}
+		return match ($mode) {
+			'find' => $expected_nationalchecksum,
+			'set' => self::_iban_nationalchecksum_set($iban, $expected_nationalchecksum),
+			'verify' => (self::iban_get_nationalchecksum_part($iban) == $expected_nationalchecksum)
+		};
 	}
 
 	/**
 	 *  ISO/IEC 7064, MOD 97-10
-	 *  @param $input string Must contain only characters ('0123456789').
-	 *  @output A 2 character string containing '0123456789',
-	 *          or '' (empty string) on failure due to bad input.
-	 *  (Credit: php-iso7064 @ https://github.com/globalcitizen/php-iso7064)
+	 * @param $input string Must contain only characters ('0123456789').
+	 * @output A 2 character string containing '0123456789',
+	 *               or '' (empty string) on failure due to bad input.
+	 *               (Credit: php-iso7064 @ https://github.com/globalcitizen/php-iso7064)
+	 * @return numeric-string|''
 	 */
-	public static function _iso7064_mod97_10_generated($input){
+	public static function _iso7064_mod97_10_generated(string $input): string{
 		$input = strtoupper($input); # normalize
 		if (!preg_match('/^[0123456789]+$/', $input)){
 			return '';
@@ -1227,7 +1212,7 @@ final class IbanLoad{
 		$p = 0;
 		for ($i = 0; $i < strlen($input); $i++){
 			$val = strpos($output_values, substr($input, $i, 1));
-			if ($val < 0){
+			if ($val === false){
 				return '';
 			} # illegal character encountered
 			$p = (($p + $val) * $radix) % $modulus;
@@ -1242,16 +1227,20 @@ final class IbanLoad{
 	/**
 	 *  Implement the national checksum for an Montenegro (ME) IBAN
 	 *   (NOTE: Reverse engineered)
+	 * @param 'set'|'find'|'verify' $mode
+	 * @return ($mode is 'set' ? string : ($mode is 'verify' ? bool : numeric-string) )
 	 */
-	public static function _iban_nationalchecksum_implementation_me($iban, $mode){
+	private static function _iban_nationalchecksum_implementation_me(string $iban, string $mode): bool|string{
 		return self::_iban_nationalchecksum_implementation_mod97_10($iban, $mode);
 	}
 
 	/**
 	 *  Implement the national checksum for an Macedonia (MK) IBAN
 	 *   (NOTE: Reverse engineered)
+	 * @param 'set'|'find'|'verify' $mode
+	 * @return ($mode is 'set' ? string : ($mode is 'verify' ? bool : numeric-string) )
 	 */
-	public static function _iban_nationalchecksum_implementation_mk($iban, $mode){
+	private static function _iban_nationalchecksum_implementation_mk(string $iban, string $mode): bool|string{
 		return self::_iban_nationalchecksum_implementation_mod97_10($iban, $mode);
 	}
 
@@ -1261,7 +1250,7 @@ final class IbanLoad{
 	 *   treat it specially here.
 	 *   (Original code: Validate_NL PEAR class, since extended)
 	 */
-	public static function _iban_nationalchecksum_implementation_nl($iban, $mode){
+	private static function _iban_nationalchecksum_implementation_nl(string $iban, string $mode): string|bool{
 		if ($mode != 'set' && $mode != 'find' && $mode != 'verify'){
 			return '';
 		} # blank value on return to distinguish from correct execution
@@ -1275,41 +1264,23 @@ final class IbanLoad{
 			$checksum += ((int)$account[$i] * (10 - $i));
 		}
 		$remainder = $checksum % 11;
-		if ($mode == 'verify'){
-			return ($remainder == 0); # we return the result of mod11, if 0 it's good
-		}
-		elseif ($mode == 'set'){
-			if ($remainder == 0){
-				return $iban; # we return as expected if the checksum is ok
-			}
-			return ''; # we return unimplemented if the checksum is bad
-		}
-		elseif ($mode == 'find'){
-			return ''; # does not make sense for this 0-digit checksum
-		}
+		return match ($mode) {
+			'verify' => ($remainder == 0), # we return the result of mod11, if 0 it's good
+			'set' => $remainder == 0
+				? $iban # we return as expected if the checksum is ok
+				: '',  # we return unimplemented if the checksum is bad
+			'find' => ''# does not make sense for this 0-digit checksum
+		};
 	}
 
 	/**
 	 *  Implement the national checksum for an Portugal (PT) IBAN
 	 *   (NOTE: Reverse engineered)
+	 * @param 'set'|'find'|'verify' $mode
+	 * @return ($mode is 'set' ? string : ($mode is 'verify' ? bool : numeric-string) )
 	 */
-	public static function _iban_nationalchecksum_implementation_pt($iban, $mode){
-		if ($mode != 'set' && $mode != 'find' && $mode != 'verify'){
-			return '';
-		} # blank value on return to distinguish from correct execution
-		$nationalchecksum = self::iban_get_nationalchecksum_part($iban);
-		$bban = self::iban_get_bban_part($iban);
-		$bban_less_checksum = substr($bban, 0, strlen($bban) - 2);
-		$expected_nationalchecksum = self::_iso7064_mod97_10_generated($bban_less_checksum);
-		if ($mode == 'find'){
-			return $expected_nationalchecksum;
-		}
-		elseif ($mode == 'set'){
-			return self::_iban_nationalchecksum_set($iban, $expected_nationalchecksum);
-		}
-		elseif ($mode == 'verify'){
-			return ($nationalchecksum == $expected_nationalchecksum);
-		}
+	private static function _iban_nationalchecksum_implementation_pt(string $iban, string $mode): bool|string{
+		return self::_iban_nationalchecksum_implementation_mod97_10($iban, $mode);
 	}
 
 	/**
@@ -1317,8 +1288,10 @@ final class IbanLoad{
 	 *   (NOTE: Reverse engineered, including bank 'Narodna banka Srbije' (908) exception. For two
 	 *          separately published and legitimate looking IBANs from that bank, there appears to
 	 *          be a +97 offset on the checksum, so we simply ignore all checksums for this bank.)
+	 * @param 'set'|'find'|'verify' $mode
+	 * @return string|bool|numeric-string|''
 	 */
-	public static function _iban_nationalchecksum_implementation_rs($iban, $mode){
+	private static function _iban_nationalchecksum_implementation_rs(string $iban, string $mode): bool|string{
 		$bank = self::iban_get_bank_part($iban);
 		if ($bank == '908'){
 			return '';
@@ -1331,8 +1304,10 @@ final class IbanLoad{
 	 *   Note: It appears that the central bank does not use these
 	 *         checksums, thus an exception has been added.
 	 *   (NOTE: Reverse engineered)
+	 * @param 'set'|'find'|'verify' $mode
+	 * @return string|bool|numeric-string|''
 	 */
-	public static function _iban_nationalchecksum_implementation_si($iban, $mode){
+	private static function _iban_nationalchecksum_implementation_si(string $iban, string $mode): bool|string{
 		$bank = self::iban_get_bank_part($iban);
 		# Bank of Slovenia does not use the legacy checksum scheme.
 		#  Accounts in this namespace appear to be the central bank
@@ -1347,8 +1322,10 @@ final class IbanLoad{
 	 *  Implement the national checksum for Slovak Republic (SK) IBAN
 	 *  Source of algorithm: https://www.nbs.sk/_img/Documents/_Legislativa/_Vestnik/OPAT8-09.pdf
 	 *  Account number is currently verified only, it's possible to also add validation for bank code and account number prefix
+	 * @param 'set'|'find'|'verify' $mode
+	 * @return ($mode is 'set' ? '' : ($mode is 'verify' ? bool : '') )
 	 */
-	public static function _iban_nationalchecksum_implementation_sk($iban, $mode){
+	private static function _iban_nationalchecksum_implementation_sk(string $iban, string $mode): string|bool{
 		if ($mode !== 'verify'){
 			return '';
 		}
@@ -1358,7 +1335,7 @@ final class IbanLoad{
 
 		$sum = 0;
 		for ($i = 0; $i < 10; $i++){
-			$sum += $account[$i] * $weights[$i];
+			$sum += (int)$account[$i] * $weights[$i];
 		}
 
 		return $sum % 11 === 0;
@@ -1366,57 +1343,40 @@ final class IbanLoad{
 
 	/**
 	 *  Implement the national checksum for MOD97-10 countries
+	 * @param 'set'|'find'|'verify' $mode
+	 * @return ($mode is 'set' ? string : ($mode is 'verify' ? bool : numeric-string) )
 	 */
-	public static function _iban_nationalchecksum_implementation_mod97_10($iban, $mode){
-		if ($mode != 'set' && $mode != 'find' && $mode != 'verify'){
-			return '';
-		} # blank value on return to distinguish from correct execution
+	private static function _iban_nationalchecksum_implementation_mod97_10(string $iban, string $mode): bool|string{
 		$nationalchecksum = self::iban_get_nationalchecksum_part($iban);
 		$bban = self::iban_get_bban_part($iban);
 		$bban_less_checksum = substr($bban, 0, strlen($bban) - 2);
 		$expected_nationalchecksum = self::_iso7064_mod97_10_generated($bban_less_checksum);
-		if ($mode == 'find'){
-			return $expected_nationalchecksum;
-		}
-		elseif ($mode == 'set'){
-			return self::_iban_nationalchecksum_set($iban, $expected_nationalchecksum);
-		}
-		elseif ($mode == 'verify'){
-			return ($nationalchecksum == $expected_nationalchecksum);
-		}
+		return match ($mode) {
+			'find' => $expected_nationalchecksum,
+			'set' => self::_iban_nationalchecksum_set($iban, $expected_nationalchecksum),
+			'verify' => ($nationalchecksum == $expected_nationalchecksum)
+		};
 	}
 
 	/**
 	 *  Implement the national checksum for an Timor-Lest (TL) IBAN
 	 *   (NOTE: Reverse engineered, but works on 2 different IBAN from official sources)
+	 * @param 'set'|'find'|'verify' $mode
+	 * @return ($mode is 'set' ? string : ($mode is 'verify' ? bool : numeric-string) )
 	 */
-	public static function _iban_nationalchecksum_implementation_tl($iban, $mode){
-		if ($mode != 'set' && $mode != 'find' && $mode != 'verify'){
-			return '';
-		} # blank value on return to distinguish from correct execution
-		$nationalchecksum = self::iban_get_nationalchecksum_part($iban);
-		$bban = self::iban_get_bban_part($iban);
-		$bban_less_checksum = substr($bban, 0, strlen($bban) - 2);
-		$expected_nationalchecksum = self::_iso7064_mod97_10_generated($bban_less_checksum);
-		if ($mode == 'find'){
-			return $expected_nationalchecksum;
-		}
-		elseif ($mode == 'set'){
-			return self::_iban_nationalchecksum_set($iban, $expected_nationalchecksum);
-		}
-		elseif ($mode == 'verify'){
-			return ($nationalchecksum == $expected_nationalchecksum);
-		}
+	public static function _iban_nationalchecksum_implementation_tl(string $iban, string $mode): bool|string{
+		return self::_iban_nationalchecksum_implementation_mod97_10($iban, $mode);
 	}
 
 	/**
 	 *  Luhn Check
 	 *  (Credit: Adapted from @gajus' https://gist.github.com/troelskn/1287893#gistcomment-857491)
 	 */
-	public static function _luhn($string){
+	public static function _luhn(string $string): int{
 		$checksum = '';
-		foreach (str_split(strrev((string)$string)) as $i => $d){
-			$checksum .= $i % 2 !== 0 ? $d * 2 : $d;
+		foreach (str_split(strrev($string)) as $i => $d){
+
+			$checksum .= $i % 2 !== 0 ? ((int)$d * 2) : $d;
 		}
 		return array_sum(str_split($checksum)) % 10;
 	}
@@ -1424,8 +1384,10 @@ final class IbanLoad{
 	/**
 	 *  Verhoeff checksum
 	 *  (Credit: Adapted from Semyon Velichko's code at https://en.wikibooks.org/wiki/Algorithm_Implementation/Checksums/Verhoeff_Algorithm#PHP)
+	 * @return ($input is numeric-string ? int<0,9> : '')
+	 * @noinspection PhpHalsteadMetricInspection
 	 */
-	public static function _verhoeff($input){
+	public static function _verhoeff(string $input): int|string{
 		if ($input == '' || preg_match('/[^0-9]/', $input)){
 			return '';
 		} # reject non-numeric input
@@ -1439,7 +1401,7 @@ final class IbanLoad{
 			[6, 5, 9, 8, 7, 1, 0, 4, 3, 2],
 			[7, 6, 5, 9, 8, 2, 1, 0, 4, 3],
 			[8, 7, 6, 5, 9, 3, 2, 1, 0, 4],
-			[9, 8, 7, 6, 5, 4, 3, 2, 1, 0]
+			[9, 8, 7, 6, 5, 4, 3, 2, 1, 0],
 		];
 		$p = [
 			[0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
@@ -1449,7 +1411,7 @@ final class IbanLoad{
 			[9, 4, 5, 3, 1, 2, 6, 8, 7, 0],
 			[4, 2, 8, 6, 5, 7, 3, 9, 0, 1],
 			[2, 7, 9, 3, 8, 0, 6, 4, 1, 5],
-			[7, 0, 4, 6, 9, 1, 3, 2, 5, 8]
+			[7, 0, 4, 6, 9, 1, 3, 2, 5, 8],
 		];
 		$inv = [0, 4, 3, 2, 1, 5, 6, 7, 8, 9];
 		$r = 0;
@@ -1462,8 +1424,10 @@ final class IbanLoad{
 	/**
 	 *  Damm checksum
 	 *  (Credit: https://en.wikibooks.org/wiki/Algorithm_Implementation/Checksums/Damm_Algorithm#PHP)
+	 *
+	 * @return ($input is numeric-string ? int : '')
 	 */
-	public static function _damm($input){
+	public static function _damm(string $input): int|string{
 		if ($input == '' || preg_match('/[^0-9]/', $input)){
 			return '';
 		} # non-numeric input
@@ -1482,7 +1446,7 @@ final class IbanLoad{
 		];
 		$checksum = 0;
 		for ($i = 0; $i < strlen($input); $i++){
-			$character = substr($input, $i, 1);
+			$character = (int)substr($input, $i, 1);
 			$checksum = $matrix[$checksum][$character];
 		}
 		return $checksum;
@@ -1490,30 +1454,26 @@ final class IbanLoad{
 
 	/**
 	 *  Implement the national checksum for an Italian (IT) IBAN
+	 * @param 'set'|'find'|'verify' $mode
+	 * @return ($mode is 'set' ? string : ($mode is 'verify' ? bool : string) )
 	 */
-	public static function _iban_nationalchecksum_implementation_it($iban, $mode){
-		if ($mode != 'set' && $mode != 'find' && $mode != 'verify'){
-			return '';
-		} # blank value on return to distinguish from correct execution
-		$nationalchecksum = self::iban_get_nationalchecksum_part($iban);
+	private static function _iban_nationalchecksum_implementation_it(string $iban, string $mode): bool|string{
 		$bban = self::iban_get_bban_part($iban);
 		$bban_less_checksum = substr($bban, 1);
 		$expected_nationalchecksum = self::_italian($bban_less_checksum);
-		if ($mode == 'find'){
-			return $expected_nationalchecksum;
-		}
-		elseif ($mode == 'set'){
-			return self::_iban_nationalchecksum_set($iban, $expected_nationalchecksum);
-		}
-		elseif ($mode == 'verify'){
-			return (self::iban_get_nationalchecksum_part($iban) == $expected_nationalchecksum);
-		}
+		return match ($mode) {
+			'find' => $expected_nationalchecksum,
+			'set' => self::_iban_nationalchecksum_set($iban, $expected_nationalchecksum),
+			'verify' => (self::iban_get_nationalchecksum_part($iban) == $expected_nationalchecksum)
+		};
 	}
 
 	/**
 	 *  Implement the national checksum for a San Marino (SM) IBAN
+	 * @param 'set'|'find'|'verify' $mode
+	 * @return ($mode is 'set' ? string : ($mode is 'verify' ? bool : string) )
 	 */
-	public static function _iban_nationalchecksum_implementation_sm($iban, $mode){
+	private static function _iban_nationalchecksum_implementation_sm(string $iban, string $mode): bool|string{
 		// San Marino adheres to Italian rules.
 		return self::_iban_nationalchecksum_implementation_it($iban, $mode);
 	}
@@ -1523,8 +1483,9 @@ final class IbanLoad{
 	 *  (Credit: Translated by Francesco Zanoni from http://community.visual-basic.it/lucianob/archive/2004/12/26/2464.aspx)
 	 *  (Source: European Commettee of Banking Standards' Register of European Account Numbers (TR201 V3.23 — FEBRUARY 2007),
 	 *           available at URL http://www.cnb.cz/cs/platebni_styk/iban/download/TR201.pdf)
+	 * @return string
 	 */
-	public static function _italian($input){
+	private static function _italian(string $input): string{
 		$digits = str_split('0123456789');
 		$letters = str_split('ABCDEFGHIJKLMNOPQRSTUVWXYZ-. ');
 		$lengthOfBbanWithoutChecksum = 22;
@@ -1564,11 +1525,10 @@ final class IbanLoad{
 	 *     - In 'verify' mode, the checksum within $iban is compared to correctly calculated value, and true or false is returned.
 	 *   If a national checksum algorithm does not exist or remains unimplemented for this country, or the supplied $iban or $mode is invalid, '' is returned.
 	 *   (NOTE: We cannot collapse 'verify' mode and implement here via simple string comparison between 'find' mode output and the nationalchecksum part,
+	 * @param 'set'|'find'|'verify' $mode
+	 * @return ($mode is 'set' ? string : ($mode is 'verify' ? bool : (int|string|numeric-string)) )
 	 */
-	public static function _iban_nationalchecksum_implementation($iban, $mode){
-		if ($mode != 'set' && $mode != 'find' && $mode != 'verify'){
-			return '';
-		} #  blank value on return to distinguish from correct execution
+	private static function _iban_nationalchecksum_implementation(string $iban, string $mode): bool|int|string{
 		$iban = self::iban_to_machine_format($iban);
 		$country = self::iban_get_country_part($iban);
 		if (strlen($iban) != self::iban_country_get_iban_length($country)){
@@ -1596,8 +1556,17 @@ final class IbanLoad{
 	 *       correlation, we are going to assume that the first error is theirs.
 	 *
 	 * Implement the national checksum for a Central African Republic (CF) IBAN
+	 * @param 'set'|'find'|'verify' $mode
+	 * *  @return ($mode is 'set' ? string : ($mode is 'verify' ? bool : numeric-string) )
 	 */
-	public static function _iban_nationalchecksum_implementation_cf($iban, $mode){
+	private static function _iban_nationalchecksum_implementation_cf(string $iban, string $mode): bool|string{
 		return self::_iban_nationalchecksum_implementation_fr($iban, $mode);
 	}
 }
+
+
+
+
+
+
+
